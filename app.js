@@ -1,13 +1,26 @@
 const MAX_COL_SIZE = 10;
+const CALENDAR_START_ROW = 3;
 
 function exportCalendarEventsToSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  const homeSheet = spreadsheet.getSheetByName("ホーム");
+
+  if (!homeSheet) {
+    throw new Error("ホームシートが見つかりません。");
+  }
+
+  // A2とB2から年と月を取得
+  const year = homeSheet.getRange("A2").getValue();
+  const month = homeSheet.getRange("B2").getValue();
+
+  if (!year || !month) {
+    throw new Error(
+      "ホームシートのA2またはB2に年または月が入力されていません。"
+    );
+  }
+
   const calendarList = CalendarApp.getAllCalendars();
-
-  const year = 2024; // 取得したい年を指定
-  const month = 11; // 取得したい月（1月なら1）を指定
-
-  let dayRows = [];
 
   calendarList
     .filter((cal) => {
@@ -18,12 +31,40 @@ function exportCalendarEventsToSheet() {
     .forEach((calendar) => {
       const sheetName = `${calendar.getName()}【${month}月】`;
       let sheet = spreadsheet.getSheetByName(sheetName);
-
+      const dayRows = [];
       // 既存のシートを削除して新規作成
       if (sheet) {
         spreadsheet.deleteSheet(sheet);
       }
       sheet = spreadsheet.insertSheet(sheetName);
+
+      // タイトル
+      sheet
+        .getRange(1, 1)
+        .setValue(`${month}月 `)
+        .setFontSize(21)
+        .setFontWeight("bold");
+      sheet
+        .getRange(1, 2)
+        .setValue(`${calendar.getName()} 診療予定`)
+        .setFontSize(21)
+        .setFontWeight("bold");
+
+      // 曜日名
+      [
+        { col: 1, dayOfWeek: "月" },
+        { col: 3, dayOfWeek: "火" },
+        { col: 5, dayOfWeek: "水" },
+        { col: 7, dayOfWeek: "木" },
+        { col: 9, dayOfWeek: "金" },
+      ].forEach((val) => {
+        sheet
+          .getRange(2, val.col)
+          .setValue(val.dayOfWeek)
+          .setFontSize(14)
+          .setFontWeight("bold")
+          .setHorizontalAlignment("right");
+      });
 
       const daysInMonth = new Date(year, month, 0).getDate();
       const startDate = new Date(year, month - 1, 1);
@@ -43,7 +84,7 @@ function exportCalendarEventsToSheet() {
         }
       });
 
-      let currentRow = 1;
+      let currentRow = CALENDAR_START_ROW;
 
       // 初週の空白を挿入
       const firstDayOfWeek = new Date(year, month - 1, 1).getDay(); // 0:日曜, ..., 6:土曜
@@ -63,13 +104,11 @@ function exportCalendarEventsToSheet() {
           dayRow.push(""); // 各日付セルに2列分のスペースを確保
         }
         day++;
-
         // 1週間（平日5日分）がそろったら日付行を設定し、次の週に進む
         if (dayOfWeek === 5 || day > daysInMonth) {
           if (dayRow.length > 0) {
             const range = sheet.getRange(currentRow, 1, 1, dayRow.length);
-            range.setValues([dayRow]);
-            range.setFontWeight("bold");
+            range.setValues([dayRow]).setFontWeight("bold").setFontSize(11);
             dayRows.push(currentRow);
           }
           currentRow++;
@@ -87,7 +126,7 @@ function exportCalendarEventsToSheet() {
               const targetRow = eventsRowStart + Math.floor(eventIndex / 2); // 2個ごとに次の行
               const targetCol = col + (eventIndex % 2); // 奇数なら次の列に配置
               const targetCell = sheet.getRange(targetRow, targetCol);
-              targetCell.setValue(event);
+              targetCell.setValue(event).setFontSize(11);
               targetCell.setNumberFormat("@STRING@");
             });
 
@@ -118,6 +157,9 @@ function exportCalendarEventsToSheet() {
       }
 
       drawBorder(sheet, dayRows);
+      dayRows.forEach((row) => {
+        sheet.getRange(row, 1, 1, MAX_COL_SIZE).setBackground("#d9ead3");
+      });
     });
 }
 
@@ -130,10 +172,10 @@ function drawBorder(sheet, dayRows) {
   });
   Array.from([3, 5, 7, 9]).forEach((col) => {
     sheet
-      .getRange(1, col, lastRow, 1)
+      .getRange(2, col, lastRow - 1, 1)
       .setBorder(false, true, false, false, null, null); // 曜日ごとに
   });
   sheet
-    .getRange(1, 1, lastRow, MAX_COL_SIZE)
+    .getRange(2, 1, lastRow - 1, MAX_COL_SIZE)
     .setBorder(true, true, true, true, null, null); // カレンダー全体
 }
