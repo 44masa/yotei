@@ -156,15 +156,33 @@ function exportCalendarEventsToSheet() {
         );
       }
 
-      drawBorder(sheet, dayRows);
+      const lastRow = Math.max(
+        dayRows[dayRows.length - 1] + 5,
+        sheet.getLastRow()
+      );
+      // 罫線を引く
+      drawBorder(sheet, dayRows, lastRow);
+      // 日付に色付け
       dayRows.forEach((row) => {
         sheet.getRange(row, 1, 1, MAX_COL_SIZE).setBackground("#d9ead3");
       });
+      // 検査予定のセル作成
+      sheet
+        .getRange(lastRow + 1, 1, 1, MAX_COL_SIZE)
+        .merge()
+        .setValue("検査予定")
+        .setBorder(true, true, true, true, null, null)
+        .setBackground("#d4cccb")
+        .setFontSize(11)
+        .setHorizontalAlignment("center");
+      // 検査予定入力欄の罫線引く
+      sheet
+        .getRange(lastRow + 1, 1, 7, MAX_COL_SIZE)
+        .setBorder(true, true, true, true, null, null);
     });
 }
 
-function drawBorder(sheet, dayRows) {
-  const lastRow = Math.max(dayRows[dayRows.length - 1] + 5, sheet.getLastRow());
+function drawBorder(sheet, dayRows, lastRow) {
   dayRows.forEach((row) => {
     sheet
       .getRange(row, 1, 1, MAX_COL_SIZE)
